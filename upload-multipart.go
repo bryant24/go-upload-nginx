@@ -7,18 +7,18 @@ import (
 	"bytes"
 	"strconv"
 	"math"
-	"io/ioutil"
+	"github.com/satori/go.uuid"
 )
 
 type Uploader struct {
 	UploadApi  string
 	SessionId  string
 	TargetFile string
+	ChunkSize  int
 }
 
-const ChunkSize = 2//CHUNK SIZE
-
 func (this *Uploader)SplitAndUpload() {
+	this.SessionId = uuid.NewV4().String()
 	file, err := os.Open(this.TargetFile)
 	if err != nil {
 		fmt.Println(err)
@@ -27,9 +27,9 @@ func (this *Uploader)SplitAndUpload() {
 	defer file.Close()
 	fileInfo, _ := file.Stat()
 	var fileSize int64 = fileInfo.Size()
-	const fileChunk = ChunkSize * (1 << 20)
+	const fileChunk = this.ChunkSize * (1 << 20)
 	totalPartsNum := uint64(math.Ceil(float64(fileSize) / float64(fileChunk)))
-	fmt.Printf("Split to %d pieces.\n", totalPartsNum)
+	//fmt.Printf("Split to %d pieces.\n", totalPartsNum)
 	for i := uint64(0); i < totalPartsNum; i++ {
 		partSize := int(math.Min(fileChunk, float64(fileSize - int64(i * fileChunk))))
 		partBuffer := make([]byte, partSize)
@@ -39,7 +39,7 @@ func (this *Uploader)SplitAndUpload() {
 		file.Read(partBuffer)
 		//here you can use more go routine to speed up,like multiple thread upload
 		this.HttpDo(partBuffer, startPos, stopPos, int64(partSize), fileSize, fileInfo.Name())
-		fmt.Printf("Start:%d,Stop:%d,ChunkSize:%d\n", startPos, stopPos, partSize)
+		//fmt.Printf("Start:%d,Stop:%d,ChunkSize:%d\n", startPos, stopPos, partSize)
 	}
 
 }
@@ -57,6 +57,6 @@ func (this *Uploader)HttpDo(buf []byte, start, stop, chunkSize, total int64, fil
 	req.Header.Set("Content-Length", strconv.FormatInt(chunkSize, 10))
 	resp, err := client.Do(req)
 	defer resp.Body.Close()
-	b, _ := ioutil.ReadAll(resp.Body)
-	fmt.Println("Response body:", string(b))
+	//b, _ := ioutil.ReadAll(resp.Body)
+	//fmt.Println("Response body:", string(b))
 }
